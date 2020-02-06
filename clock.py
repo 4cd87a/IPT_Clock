@@ -29,6 +29,7 @@ class App(QWidget):
         self.title = 'FPT clock'
         self.state = 0
         self.states = states
+        self.savedata = None
 
         self.setWindowTitle(self.title)
         self.setAutoFillBackground(True)
@@ -122,6 +123,7 @@ class App(QWidget):
 
 
     def setEvent(self, i):
+        self.save()
         if i<0:
             self.childWindow.end(0)
         elif i <= len(self.states) - 1:
@@ -162,6 +164,8 @@ class App(QWidget):
             self.childWindow.end()
         if e.key() == Qt.Key_W:
             self.zeromove()
+        if e.key() == Qt.Key_Z:
+            self.load()
 
     def zeromove(self):
         self.move(0,0)
@@ -174,6 +178,23 @@ class App(QWidget):
         self.logoSFP.setMinimumWidth(self.frameGeometry().width()/logoSizeCoeff)
         self.logoFPT.setMinimumWidth(self.frameGeometry().width()/logoSizeCoeff)
 
+    def save(self):
+        if self.savedata==None or (datetime.datetime.now() - self.savedata["timestamp"]).total_seconds()>3:
+            self.savedata = {"timestamp":datetime.datetime.now(),
+                             "state":self.state,
+                             "overtime":self.m.overtime,
+                             "datestart":self.m.datestart,
+                             "elapsedTime":self.m.elapsedTime}
+
+    def load(self,data=None):
+        if data==None: data = self.savedata
+        if data!=None and (datetime.datetime.now() - data["timestamp"]).total_seconds()<10:
+            self.setEvent(data["state"])
+            self.m.overtime = data["overtime"]
+            self.m.datestart = data["datestart"]
+            self.m.elapsedTime = data["elapsedTime"]
+        else:
+            print("Cannot load last version")
 
 class AnalogClock(QWidget):
 
@@ -186,6 +207,7 @@ class AnalogClock(QWidget):
         self.startPause = datetime.datetime.now()
 
         self.elapsedTimeClock = datetime.timedelta()
+        self.elapsedTime = 0
         self.datestart = datetime.datetime.now()
 
         self.duration = duration
@@ -308,6 +330,7 @@ class AnalogClock(QWidget):
             self.parent.c.styleNormal()
 
     def addMinute(self,min=1):
+        self.parent.save()
         self.duration += 60*min
         if self.duration<=0:
             self.duration += 60*abs(min)
@@ -403,6 +426,8 @@ class ClockControls(QDialog):
             self.end()
         if e.key() == Qt.Key_W:
             self.parent.zeromove()
+        if e.key() == Qt.Key_Z:
+            self.parent.load()
 
 class HelpClock(QDialog):
     def __init__(self, parent,):
@@ -458,6 +483,8 @@ class HelpClock(QDialog):
         if e.key() == Qt.Key_Q:
             self.parent.c = None
             self.close()
+        if e.key() == Qt.Key_Z:
+            self.parent.load()
 
     def stylePause(self):
         self.countDown.setStyleSheet('font-weight: bold')
